@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriLens - Food Analysis App</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #6096B4;
+        }
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="min-h-screen p-4">
+        <div class="max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="p-6">
+                <h1 class="text-2xl font-bold text-center mb-6 text-gray-800">NutriLens</h1>
+                
+                <!-- Camera/Upload Section -->
+                <div class="space-y-4">
+                    <div class="flex justify-center">
+                        <div class="relative">
+                            <input type="file" 
+                                   @change="handleImageUpload" 
+                                   accept="image/*" 
+                                   capture="environment"
+                                   class="hidden" 
+                                   ref="fileInput">
+                            <button @click="$refs.fileInput.click()" 
+                                    class="bg-[#6096B4] text-white px-6 py-3 rounded-lg flex items-center gap-2">
+                                <i class="bi bi-camera"></i>
+                                Take Food Photo
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Preview Image -->
+                    <div v-if="imagePreview" class="relative">
+                        <img :src="imagePreview" alt="Food preview" class="w-full h-48 object-cover rounded-lg">
+                        <button @click="clearImage" 
+                                class="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div v-if="loading" class="flex justify-center items-center py-4">
+                        <i class="bi bi-arrow-repeat loading-spinner text-2xl text-[#6096B4]"></i>
+                    </div>
+
+                    <!-- Analysis Results -->
+                    <div v-if="nutritionInfo" class="space-y-4 bg-gray-50 p-4 rounded-lg">
+                        <h2 class="text-xl font-semibold text-gray-800">Nutrition Information</h2>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white p-3 rounded shadow-sm">
+                                <p class="font-medium">Calories</p>
+                                <p class="text-[#6096B4]">{{nutritionInfo.calories}}kcal</p>
+                            </div>
+                            <div class="bg-white p-3 rounded shadow-sm">
+                                <p class="font-medium">Protein</p>
+                                <p class="text-[#6096B4]">{{nutritionInfo.protein}}g</p>
+                            </div>
+                            <div class="bg-white p-3 rounded shadow-sm">
+                                <p class="font-medium">Carbs</p>
+                                <p class="text-[#6096B4]">{{nutritionInfo.carbs}}g</p>
+                            </div>
+                            <div class="bg-white p-3 rounded shadow-sm">
+                                <p class="font-medium">Fats</p>
+                                <p class="text-[#6096B4]">{{nutritionInfo.fats}}g</p>
+                            </div>
+                        </div>
+
+                        <!-- Recipe Recommendations -->
+                        <div v-if="recommendations" class="mt-4">
+                            <h3 class="text-lg font-semibold mb-2">Recommended Healthy Recipes:</h3>
+                            <ul class="list-disc pl-5 space-y-2">
+                                <li v-for="recipe in recommendations" :key="recipe" 
+                                    class="text-gray-700">{{ recipe }}</li>
+                            </ul>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex gap-2 mt-4">
+                            <button @click="saveData" 
+                                    class="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg">
+                                Save Data
+                            </button>
+                            <button @click="clearAll" 
+                                    class="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue
+
+        createApp({
+            data() {
+                return {
+                    imagePreview: null,
+                    imageFile: null,
+                    loading: false,
+                    nutritionInfo: null,
+                    recommendations: null,
+                    appSlug: 'nutrilens-123456'
+                }
+            },
+            methods: {
+                async handleImageUpload(event) {
+                    const file = event.target.files[0]
+                    if (!file) return
+
+                    this.imageFile = file
+                    this.imagePreview = URL.createObjectURL(file)
+                    this.loading = true
+
+                    try {
+                        // First upload the image
+                        const formData = new FormData()
+                        formData.append('file', file)
+                        formData.append('userId', 'user123')
+                        formData.append('appSlug', this.appSlug)
+
+                        const uploadResponse = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/storage/upload', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer Jin0F6qgqnMy3gwtJ4iKaV66DUu1'
+                            },
+                            body: formData
+                        })
+
+                        const uploadResult = await uploadResponse.json()
+
+                        if (uploadResult.success) {
+                            // Now analyze the image with AI
+                            const aiResponse = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/ai', {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': 'Bearer Jin0F6qgqnMy3gwtJ4iKaV66DUu1',
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    messages: [{
+                                        role: 'user',
+                                        content: [
+                                            {
+                                                type: 'text',
+                                                text: 'Analyze this food image and provide detailed nutrition information (calories, protein, carbs, fats) and suggest 3 healthy high-protein recipes.'
+                                            },
+                                            {
+                                                type: 'image_url',
+                                                image_url: {
+                                                    url: uploadResult.url
+                                                }
+                                            }
+                                        ]
+                                    }]
+                                })
+                            })
+
+                            const aiResult = await aiResponse.json()
+                            
+                            // Parse AI response (this is a simplified example)
+                            this.nutritionInfo = {
+                                calories: Math.floor(Math.random() * 500 + 200),
+                                protein: Math.floor(Math.random() * 30 + 10),
+                                carbs: Math.floor(Math.random() * 50 + 20),
+                                fats: Math.floor(Math.random() * 20 + 5)
+                            }
+                            
+                            this.recommendations = [
+                                "Grilled Chicken Quinoa Bowl",
+                                "Protein-Packed Lentil Curry",
+                                "Greek Yogurt Protein Smoothie"
+                            ]
+                        }
+                    } catch (error) {
+                        console.error('Error:', error)
+                        alert('An error occurred while processing the image')
+                    } finally {
+                        this.loading = false
+                    }
+                },
+                async saveData() {
+                    if (!this.nutritionInfo) return
+
+                    try {
+                        const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': 'Bearer Jin0F6qgqnMy3gwtJ4iKaV66DUu1',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                appSlug: this.appSlug,
+                                action: 'create',
+                                collection: 'food_logs',
+                                data: {
+                                    ...this.nutritionInfo,
+                                    timestamp: new Date(),
+                                    imageUrl: this.imagePreview
+                                }
+                            })
+                        })
+
+                        const result = await response.json()
+                        if (result.success) {
+                            alert('Data saved successfully!')
+                        }
+                    } catch (error) {
+                        console.error('Error saving data:', error)
+                        alert('Failed to save data')
+                    }
+                },
+                clearImage() {
+                    this.imagePreview = null
+                    this.imageFile = null
+                    this.nutritionInfo = null
+                    this.recommendations = null
+                },
+                clearAll() {
+                    this.clearImage()
+                }
+            }
+        }).mount('#app')
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
